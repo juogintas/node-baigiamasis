@@ -1,24 +1,5 @@
 import TicketModel from "../models/ticket.js";
-
-const GET_ALL_TICKETS = async (req, res) => {
-  try {
-    const tickets = await TicketModel.find();
-    return res.status(200).json({ tickets: tickets });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-const GET_TICKET_BY_ID = async (req, res) => {
-  try {
-    const ticket = await TicketModel.findById(req.params.id);
-    return res.status(200).json({ ticket: ticket });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
+import UserModel from "../models/user.js";
 
 const INSTERT_TICKET = async (req, res) => {
   try {
@@ -38,34 +19,36 @@ const INSTERT_TICKET = async (req, res) => {
   }
 };
 
-const UPDATE_TICKET = async (req, res) => {
+const BUY_TICKET = async (req, res) => {
   try {
-    const ticket = await TicketModel.findOneAndUpdate(
-      { _id: req.params.id },
-      { ...req.body },
+    const ticket = await TicketModel.findById(req.body._id);
+    const user = await UserModel.findById(req.body.userId);
+
+    const ticketPrice = ticket.ticket_price;
+
+    let userMoney = user.money_balance;
+
+    if (ticketPrice > userMoney) {
+      return res
+        .status(400)
+        .json({ message: "Insufficient funds for purchase" });
+    }
+
+    userMoney -= ticketPrice;
+
+    user.bought_tickets.push(ticket._id);
+
+    const updatedUser = await UserModel.findOneAndUpdate(
+      { _id: req.body.userId },
+      { money_balance: userMoney, bought_tickets: user.bought_tickets },
       { new: true }
     );
-    return res.status(200).json({ ticket: ticket });
+
+    return res.status(200).json({ updatedUser: updatedUser });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-const DELETE_TICKET_BY_ID = async (req, res) => {
-  try {
-    const ticket = await TicketModel.findByIdAndDelete(req.params.id);
-    return res.status(200).json({ ticket: ticket });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-export {
-  GET_ALL_TICKETS,
-  GET_TICKET_BY_ID,
-  INSTERT_TICKET,
-  UPDATE_TICKET,
-  DELETE_TICKET_BY_ID,
-};
+export { INSTERT_TICKET, BUY_TICKET };
